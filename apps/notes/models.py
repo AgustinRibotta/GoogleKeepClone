@@ -7,7 +7,7 @@ from django.db import models
 class Note(models.Model):
     """ Model Notes """
     title = models.CharField(_("Title"), max_length=150)
-    content = models.TextField(_("Content"))
+    content = models.TextField(_("Content"), blank=True, null=True)
     create_at = models.DateTimeField(_("Create Date"), auto_now_add=True)
     update_at = models.DateTimeField(_("Update Date"), auto_now=True)
 
@@ -21,8 +21,16 @@ class Note(models.Model):
 
 class UserNote(models.Model):
     """ Models for Notes related to a user """
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+            User,
+            on_delete=models.CASCADE,
+            related_name='user'
+            )
+    note = models.ForeignKey(
+            Note,
+            on_delete=models.CASCADE,
+            related_name='note'
+            )
 
     class Meta:
         verbose_name = _("User Note")
