@@ -16,7 +16,7 @@ class Note(models.Model):
         verbose_name_plural = _("Notes")
 
     def __str__(self) -> str:
-        return f"{self.title}  {self.create_at}  {self.update_at}"
+        return f"{self.title}"
 
 
 class UserNote(models.Model):

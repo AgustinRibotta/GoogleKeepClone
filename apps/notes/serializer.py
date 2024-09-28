@@ -14,16 +14,31 @@ class UserDetailSerializer(serializers.ModelSerializer):
     """ Serializador User para User Note """
     class Meta:
         model = User
-        fields = ['username']
+        fields = ['id', 'username']
 
 
-class UserNoteSerializer(serializers.ModelSerializer):
-    """ Serializer para las Notas relacionadas un Usuario """
+class NoteDetailSerialzier(serializers.ModelSerializer):
+    """ Serializor Note para User Note """
+    class Meta:
+        model = Note
+        fields = ['id', 'title', 'content']
+
+
+class UserNoteListSerializer(serializers.ModelSerializer):
+    """ Serializer para el listado de las Notas relacionadas un Usuario """
     user = UserDetailSerializer(read_only=True)
+    note = NoteDetailSerialzier(read_only=True)
 
     class Meta:
         model = UserNote
         fields = ['user', 'note']
+
+
+class UserNoteSerializer(serializers.ModelSerializer):
+    """ Serialziador para las Notas realcionadas a los Usuarios """
+    class Meta:
+        model = UserNote
+        fields = '__all__'
 
 
 class AttachmentSerializer(serializers.ModelSerializer):
