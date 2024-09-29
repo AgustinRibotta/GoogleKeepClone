@@ -21,11 +21,10 @@ from .serializer import (
 
 class NoteViewSet(ModelViewSet):
     """ Models View Set Note """
-    queryset: List[Note] = Note.objects.all()  # type: ignore
+    queryset: List[Note] = Note.objects.all()
     serializer_class = NoteSerializer
     permission_classes = [IsAuthenticated]
 
-    # Asigna nota al usuario que la crea
     def create(self, request: Request) -> Response:
         """ Crea una nueva nota y la asocia al usuario autenticado. """
         serializer = self.get_serializer(data=request.data)
@@ -36,16 +35,15 @@ class NoteViewSet(ModelViewSet):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    #  Método list deshabilitarlo
     def list(self, request: Request, *args: Any, **kwargs: Any):
+        """ Metodo list deshabilitarlo"""
         return Response(
                 {'detail': 'Método no permitido.'},
                 status=status.HTTP_405_METHOD_NOT_ALLOWED
                 )
 
-    # Solo puede actualizar sus notas
     def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-
+        """ Metodo para actualizar solo las Notas del Usuario """
         instance = self.get_object()
 
         # Verificar que la relación UserNota existe
@@ -72,17 +70,46 @@ class NoteViewSet(ModelViewSet):
 
         return Response(serializer.data)
 
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """ Metodo para ver los detalles solo las Notas del Usuario """
+        instance = self.get_object()
+
+        if not UserNote.objects.filter(
+                user=request.user,
+                note=instance).exists():
+            raise PermissionDenied(
+                    'No tienes permiso para ver esta nota.'
+                    )
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    def destroy(self, request: Request, *args: Any, **kwargs: Any):
+        """ Metodo para elimianar solo las Notas del Usuario """
+        instance = self.get_object()
+
+        # Verificar que la relación UserNota existe
+        if not UserNote.objects.filter(
+                user=request.user,
+                note=instance
+                ).exists():
+            raise PermissionDenied(
+                    'No tienes permiso para eliminar esta nota.'
+                    )
+
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class NoteUserViewSet(ModelViewSet):
     """ Model View Set For Note User"""
-    queryset: List[UserNote] = UserNote.objects.filter()  # type: ignore
+    queryset: List[UserNote] = UserNote.objects.filter()
     serializer_class = UserNoteSerializer
     permission_classes = [IsAuthenticated]
 
-    # Lsitamos las notas de un usuario
+    # Litamos las notas de un usuario
     def list(self, request: Request) -> Response:
         """ Listado Con Usuarios y Notas """
-        queryset: List[Note] = UserNote.objects.filter(  # type: ignore
+        queryset: List[Note] = UserNote.objects.filter(
                 user=request.user
                 )
         serializer = UserNoteListSerializer(queryset, many=True)
