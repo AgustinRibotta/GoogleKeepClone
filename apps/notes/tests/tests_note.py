@@ -126,3 +126,32 @@ class NoteViewSetTests(APITestCase):
             response.status_code,
             status.HTTP_403_FORBIDDEN
         )
+
+    def test_eliminar_nota_de_otros_usuarios(self) -> None:
+        """
+        Prueba para verificar que un usuairo no autorizado no puede
+        eliminar notas de otro usuario. Se espera un estado de respuesta
+        403 (FORBIDDEN).
+        """
+        self.client.login(username='user2', password='user2')
+        url = reverse('note-detail', kwargs={'pk': self.note.pk})
+        response = self.client.delete(url)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_403_FORBIDDEN
+        )
+
+    def test_eliminar_nota(self) -> None:
+        """
+        Prueba para verificar que el usuario puede elimianr sus notas.
+        Se espera un estado de respuesta 204 (No Content)
+        """
+        self.client.login(username='user1', password='user1')
+        url = reverse('note-detail', kwargs={'pk': self.note.pk})
+        response = self.client.delete(url)
+
+        self.assertEqual(
+                response.status_code,
+                status.HTTP_204_NO_CONTENT
+        )
