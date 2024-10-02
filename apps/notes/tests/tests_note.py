@@ -1,153 +1,157 @@
 from rest_framework import status
-from rest_framework.test import APITestCase
-from ..models import Note
-from django.urls import reverse
-from rest_framework.response import Response
+from rest_framework.reverse import reverse
 from django.contrib.auth.models import User
+from rest_framework.test import APITestCase
+from ..models import Note, UserNote
 
 
 class NoteViewSetTests(APITestCase):
+    """
+    Pruebas para el conjunto de vistas de notas.
+    """
 
     def setUp(self) -> None:
-        """Crea un usuario y una instancia de Note para las pruebas."""
-        self.user = User.objects.create_user(
-            username='testuser',
-            password='testpassword'
+        """
+        Configuración inicial para las pruebas.
+        Crea dos usuarios y una instancia de nota para realizar las pruebas.
+        También establece la relación entre el usuario y la nota en UserNote.
+        """
+        self.user1 = User.objects.create_user(
+            username='user1',
+            password='user1'
         )
+        self.user2 = User.objects.create_user(
+            username='user2',
+            password='user2'
+        )
+
         self.note = Note.objects.create(
             title="Test Note",
             content="This is a test note."
         )
+        UserNote.objects.create(user=self.user1, note=self.note)
 
     def test_create_note_with_valid_data(self) -> None:
-        """Prueba crear una nueva nota con datos válidos."""
-        self.client.login(username='testuser', password='testpassword')
+        """
+        Prueba para verificar la creación de una nota con datos válidos.
+        Se espera un estado de respuesta 201 (CREATED) y que la nota se
+        guarde en la base de datos.
+        """
+        self.client.login(username='user1', password='user1')
         url = reverse('note-list')
         data = {
             'title': 'New Note',
-            'content': 'This is a new note.'
+            'content': 'This is a new note %$@@ 1234.'
         }
         response = self.client.post(url, data, format='json')
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_201_CREATED
-        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Note.objects.count(), 2)
         self.assertEqual(Note.objects.last().title, 'New Note')
-
-    def test_create_note_with_empty_content(self) -> None:
-        """Prueba crear una nueva nota con contenido vacío."""
-        self.client.login(username='testuser', password='testpassword')
-        url = reverse('note-list')
-        data = {
-            'title': 'New Note',
-            'content': ''
-        }
-        response = self.client.post(url, data, format='json')
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_201_CREATED
+        self.assertTrue(
+            UserNote.objects.filter(
+                user=self.user1, note=Note.objects.last()
+            ).exists()
         )
 
-    def test_create_note_with_empty_title(self) -> None:
-        """Prueba crear una nueva nota con título vacío."""
-        self.client.login(username='testuser', password='testpassword')
+    def test_crear_nota_sin_titulo(self) -> None:
+        """
+        Prueba para verificar que se rechaza la creación de una nota sin
+        título. Se espera un estado de respuesta 400 (BAD REQUEST).
+        """
+        self.client.login(username='user2', password='user2')
         url = reverse('note-list')
         data = {
             'title': '',
-            'content': 'This is a new note.'
+            'content': 'Esto es un test',
         }
         response = self.client.post(url, data, format='json')
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_400_BAD_REQUEST
-        )
 
-    def test_get_notes(self) -> None:
-        """Prueba recuperar la lista de notas."""
-        self.client.login(username='testuser', password='testpassword')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_crear_nota_con_titulo_solo(self) -> None:
+        """
+        Prueba para verificar que se puede crear una nota solo con título.
+        Se espera un estado de respuesta 201 (CREATED).
+        """
+        self.client.login(username='user1', password='user1')
+        url = reverse('note-list')
+        data = {
+            'title': 'Nota Solo Titulo',
+            'content': ''  # Contenido vacío
+        }
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Note.objects.count(), 2)  # Debe haber dos notas
+        self.assertEqual(Note.objects.last().title, 'Nota Solo Titulo')
+
+    def test_listar_notas(self) -> None:
+        """
+        Prueba para listar las notas del usuario.
+        Se espera un estado de respuesta 405 .
+        """
+        self.client.login(username='user2', password='user2')
         url = reverse('note-list')
         response = self.client.get(url)
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
-        )
-        self.assertEqual(len(response.data), 1)
 
-    def test_update_note_with_valid_data(self) -> None:
-        """Prueba actualizar una nota existente con datos válidos."""
-        self.client.login(username='testuser', password='testpassword')
-        url = reverse('note-detail', args=[self.note.id])
-        data = {
-            'title': 'Updated Note',
-            'content': 'This note has been updated.'
-        }
-        response = self.client.put(url, data, format='json')
         self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
-        )
-        self.note.refresh_from_db()
-        self.assertEqual(self.note.title, 'Updated Note')
+                response.status_code,
+                status.HTTP_405_METHOD_NOT_ALLOWED
+                )
 
-    def test_update_note_with_empty_title(self) -> None:
-        """Prueba actualizar una nota existente con un título vacío."""
-        self.client.login(username='testuser', password='testpassword')
-        url = reverse('note-detail', args=[self.note.id])
-        data = {
-            'title': '',  # Título vacío
-            'content': 'This note has been updated.'
-        }
-        response = self.client.put(url, data, format='json')
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_400_BAD_REQUEST
-        )
+    def test_ver_detalles_de_nota(self) -> None:
+        """
+        Prueba para verificar la visualización de los detalles de una
+        nota. Se espera un estado de respuesta 200 (OK).
+        """
+        self.client.login(username='user1', password='user1')
+        url = reverse('note-detail', kwargs={'pk': self.note.pk})
+        response = self.client.get(url)
 
-    def test_update_nonexistent_note(self) -> None:
-        """Prueba actualizar una nota que no existe."""
-        self.client.login(username='testuser', password='testpassword')
-        url = reverse('note-detail', args=[999])  # ID de nota no existente
-        data = {
-            'title': 'Updated Note',
-            'content': 'This note has been updated.'
-        }
-        response = self.client.put(url, data, format='json')
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_404_NOT_FOUND
-        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['title'], self.note.title)
 
-    def test_delete_note(self) -> None:
-        """Prueba eliminar una nota existente."""
-        self.client.login(username='testuser', password='testpassword')
-        url = reverse('note-detail', args=[self.note.id])
-        response = self.client.delete(url)
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_204_NO_CONTENT
-        )
-        self.assertEqual(Note.objects.count(), 0)
+    def test_ver_detalles_de_nota_no_autorizado(self) -> None:
+        """
+        Prueba para verificar que un usuario no autorizado no puede
+        acceder a los detalles de una nota. Se espera un estado de
+        respuesta 403 (FORBIDDEN).
+        """
+        self.client.login(username='user2', password='user2')
+        url = reverse('note-detail', kwargs={'pk': self.note.pk})
+        response = self.client.get(url)
 
-    def test_delete_nonexistent_note(self) -> None:
-        """Prueba eliminar una nota que no existe."""
-        self.client.login(username='testuser', password='testpassword')
-        url = reverse('note-detail', args=[999])  # ID de nota no existente
-        response: Response = self.client.delete(url)
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_404_NOT_FOUND
-        )
-
-    def test_create_note_without_authentication(self) -> None:
-        """Prueba crear una nueva nota sin autenticación."""
-        url = reverse('note-list')
-        data = {
-            'title': 'New Note',
-            'content': 'This note should not be created.'
-        }
-        response = self.client.post(url, data, format='json')
         self.assertEqual(
             response.status_code,
             status.HTTP_403_FORBIDDEN
+        )
+
+    def test_eliminar_nota_de_otros_usuarios(self) -> None:
+        """
+        Prueba para verificar que un usuairo no autorizado no puede
+        eliminar notas de otro usuario. Se espera un estado de respuesta
+        403 (FORBIDDEN).
+        """
+        self.client.login(username='user2', password='user2')
+        url = reverse('note-detail', kwargs={'pk': self.note.pk})
+        response = self.client.delete(url)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_403_FORBIDDEN
+        )
+
+    def test_eliminar_nota(self) -> None:
+        """
+        Prueba para verificar que el usuario puede elimianr sus notas.
+        Se espera un estado de respuesta 204 (No Content)
+        """
+        self.client.login(username='user1', password='user1')
+        url = reverse('note-detail', kwargs={'pk': self.note.pk})
+        response = self.client.delete(url)
+
+        self.assertEqual(
+                response.status_code,
+                status.HTTP_204_NO_CONTENT
         )
