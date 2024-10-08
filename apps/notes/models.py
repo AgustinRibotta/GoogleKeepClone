@@ -24,12 +24,12 @@ class UserNote(models.Model):
     user = models.ForeignKey(
             User,
             on_delete=models.CASCADE,
-            related_name='user'
+            related_name='user_note'
             )
     note = models.ForeignKey(
             Note,
             on_delete=models.CASCADE,
-            related_name='note'
+            related_name='note_user'
             )
 
     class Meta:

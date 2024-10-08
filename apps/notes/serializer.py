@@ -1,55 +1,94 @@
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 from .models import Note, UserNote, Attachment, ListItems
 from django.contrib.auth.models import User
 
 
+"""
+Serializadores para Notas
+"""
+
+
+class UserForNoteSerializer(serializers.ModelSerializer):
+    """ Serializador User para Note """
+    class Meta:
+        model = User
+        fields = ['id', 'username']
+
+
+class UserNoteForNoteSerializerNote(serializers.ModelSerializer):
+    """ Serializador para User Note para Note Serialzier"""
+    user = UserForNoteSerializer()
+
+    class Meta:
+        model = UserNote
+        fields = ['user']
+
+
+class NoteDetailSerializer(serializers.ModelSerializer):
+    """ Serializer para detalles de Note """
+    users = UserNoteForNoteSerializerNote(many=True, source='note_user')
+
+    class Meta:
+        model = Note
+        fields = ['id', 'title', 'content', 'users']
+
+
 class NoteSerializer(serializers.ModelSerializer):
-    """ Serializer para Note """
+    """ Serializar para Note """
     class Meta:
         model = Note
         fields = '__all__'
 
 
-class UserDetailSerializer(serializers.ModelSerializer):
+"""
+Serializadores para User Nota
+"""
+
+
+class UserForNoteUserSerializer(serializers.ModelSerializer):
     """ Serializador User para User Note """
     class Meta:
         model = User
         fields = ['id', 'username']
 
 
-class NoteDetailSerialzier(serializers.ModelSerializer):
+class NoteForNoteUserSerialzier(serializers.ModelSerializer):
     """ Serializor Note para User Note """
     class Meta:
         model = Note
         fields = ['id', 'title', 'content']
 
 
-class UserNoteListSerializer(serializers.ModelSerializer):
-    """ Serializer para el listado de las Notas relacionadas un Usuario """
-    user = UserDetailSerializer(read_only=True)
-    note = NoteDetailSerialzier(read_only=True)
-
-    class Meta:
-        model = UserNote
-        fields = ['user', 'note']
-
-
 class UserNoteSerializer(serializers.ModelSerializer):
-    """ Serialziador para las Notas realcionadas a los Usuarios """
+    """ Serializer para el listado de las Notas relacionadas un Usuario """
+    user = UserForNoteUserSerializer(read_only=True)
+    note = NoteForNoteUserSerialzier(read_only=True)
+    update_url = serializers.SerializerMethodField()
+    delete_url = serializers.SerializerMethodField()
+    retrieve_url = serializers.SerializerMethodField()
+
     class Meta:
         model = UserNote
-        fields = '__all__'
+        fields = ['user', 'note', 'update_url', 'delete_url', 'retrieve_url']
 
+    def get_update_url(self, obj):
+        request = self.context.get('request')
+        return reverse(
+                'note-detail',
+                kwargs={'pk': obj.note.id},
+                request=request)
 
-class AttachmentSerializer(serializers.ModelSerializer):
-    """ Serializer for Attachment """
-    class Meta:
-        model = Attachment
-        fields = '__all__'
+    def get_delete_url(self, obj):
+        request = self.context.get('request')
+        return reverse(
+                'note-detail',
+                kwargs={'pk': obj.note.id},
+                request=request)
 
-
-class ListItemsSerializer(serializers.ModelSerializer):
-    """ Serializer for List Items """
-    class Meta:
-        model = ListItems
-        fields = '__all__'
+    def get_retrieve_url(self, obj):
+        request = self.context.get('request')
+        return reverse(
+                'note-detail',
+                kwargs={'pk': obj.note.id},
+                request=request)

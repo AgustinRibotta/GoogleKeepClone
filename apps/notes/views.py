@@ -1,5 +1,6 @@
 # Typs
 from typing import Any, List
+from django.contrib.auth.models import User
 # Rest Framewoerk
 from django.contrib.auth.models import PermissionDenied
 from rest_framework.views import Request
@@ -7,6 +8,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.decorators import action
 # From App Notes
 from .models import (
         Note,
@@ -15,7 +17,7 @@ from .models import (
 from .serializer import (
         NoteSerializer,
         UserNoteSerializer,
-        UserNoteListSerializer
+        NoteDetailSerializer,
         )
 
 
@@ -80,7 +82,7 @@ class NoteViewSet(ModelViewSet):
             raise PermissionDenied(
                     'No tienes permiso para ver esta nota.'
                     )
-        serializer = self.get_serializer(instance)
+        serializer = NoteDetailSerializer(instance)
         return Response(serializer.data)
 
     def destroy(self, request: Request, *args: Any, **kwargs: Any):
@@ -112,5 +114,9 @@ class NoteUserViewSet(ModelViewSet):
         queryset: List[Note] = UserNote.objects.filter(
                 user=request.user
                 )
-        serializer = UserNoteListSerializer(queryset, many=True)
+        serializer = UserNoteSerializer(
+                queryset,
+                many=True,
+                context={'request': request}
+                )
         return Response(serializer.data)
