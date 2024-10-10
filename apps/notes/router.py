@@ -8,4 +8,5 @@ router = routers.DefaultRouter()
 
 router.register(r'note', NoteViewSet)
 router.register(r'user-note', NoteUserViewSet)
+
 urlpatterns = router.urls

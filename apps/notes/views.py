@@ -1,6 +1,5 @@
 # Typs
 from typing import Any, List
-from django.contrib.auth.models import User
 # Rest Framewoerk
 from django.contrib.auth.models import PermissionDenied
 from rest_framework.views import Request
@@ -8,7 +7,6 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.decorators import action
 # From App Notes
 from .models import (
         Note,
@@ -16,8 +14,9 @@ from .models import (
 )
 from .serializer import (
         NoteSerializer,
-        UserNoteSerializer,
+        UserNoteListSerializer,
         NoteDetailSerializer,
+        UserNoteSerializer
         )
 
 
@@ -104,7 +103,7 @@ class NoteViewSet(ModelViewSet):
 
 class NoteUserViewSet(ModelViewSet):
     """ Model View Set For Note User"""
-    queryset: List[UserNote] = UserNote.objects.filter()
+    queryset: List[UserNote] = UserNote.objects.all()
     serializer_class = UserNoteSerializer
     permission_classes = [IsAuthenticated]
 
@@ -114,9 +113,37 @@ class NoteUserViewSet(ModelViewSet):
         queryset: List[Note] = UserNote.objects.filter(
                 user=request.user
                 )
-        serializer = UserNoteSerializer(
+        serializer = UserNoteListSerializer(
                 queryset,
                 many=True,
                 context={'request': request}
                 )
         return Response(serializer.data)
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+
+        if not UserNote.objects.filte(user=request.user).exists():
+            raise PermissionDenied(
+                    'No tienes permiso para agregar usuarios a esta nota'
+                    )
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exeception=True)
+        serializer.save()
+
+        return Response({
+            'menssage': 'El usuario fue agregado con exito',
+            },
+            status=status.HTTP_200_OK
+            )
+
+    def update(self, request: Request, *arg: Any, **kwargs: Any) -> Response:
+        return Response(
+            {'detail': 'Método no permitido.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+
+    def retrieve(self, request: Request, *arg: Any, **kwargs: Any) -> Response:
+        return Response(
+            {'detail': 'Método no permitido.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )

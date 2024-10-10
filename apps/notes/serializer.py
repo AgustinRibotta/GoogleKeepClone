@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from .models import Note, UserNote, Attachment, ListItems
+from .models import Note, UserNote
 from django.contrib.auth.models import User
 
 
@@ -11,9 +11,18 @@ Serializadores para Notas
 
 class UserForNoteSerializer(serializers.ModelSerializer):
     """ Serializador User para Note """
+    delete_user_url = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'username']
+        fields = ['id', 'username', 'delete_user_url']
+
+    def get_delete_user_url(self, obj):
+        request = self.context.get('request')
+        return reverse(
+                'usernote-detail',
+                kwargs={'pk': obj.id},
+                request=request)
 
 
 class UserNoteForNoteSerializerNote(serializers.ModelSerializer):
@@ -60,35 +69,48 @@ class NoteForNoteUserSerialzier(serializers.ModelSerializer):
         fields = ['id', 'title', 'content']
 
 
-class UserNoteSerializer(serializers.ModelSerializer):
+class UserNoteListSerializer(serializers.ModelSerializer):
     """ Serializer para el listado de las Notas relacionadas un Usuario """
     user = UserForNoteUserSerializer(read_only=True)
     note = NoteForNoteUserSerialzier(read_only=True)
-    update_url = serializers.SerializerMethodField()
-    delete_url = serializers.SerializerMethodField()
-    retrieve_url = serializers.SerializerMethodField()
+    update_note_url = serializers.SerializerMethodField()
+    delete_note_url = serializers.SerializerMethodField()
+    retrieve_note_url = serializers.SerializerMethodField()
 
     class Meta:
         model = UserNote
-        fields = ['user', 'note', 'update_url', 'delete_url', 'retrieve_url']
+        fields = [
+                'user',
+                'note',
+                'update_note_url',
+                'delete_note_url',
+                'retrieve_note_url'
+                ]
 
-    def get_update_url(self, obj):
+    def get_update_note_url(self, obj):
         request = self.context.get('request')
         return reverse(
                 'note-detail',
                 kwargs={'pk': obj.note.id},
                 request=request)
 
-    def get_delete_url(self, obj):
+    def get_delete_note_url(self, obj):
         request = self.context.get('request')
         return reverse(
                 'note-detail',
                 kwargs={'pk': obj.note.id},
                 request=request)
 
-    def get_retrieve_url(self, obj):
+    def get_retrieve_note_url(self, obj):
         request = self.context.get('request')
         return reverse(
                 'note-detail',
                 kwargs={'pk': obj.note.id},
                 request=request)
+
+
+class UserNoteSerializer(serializers.ModelSerializer):
+    """ Serialzador par Metodo Create - Delete - Update - Retrive"""
+    class Meta:
+        model = UserNote
+        fields = '__all__'
