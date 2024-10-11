@@ -43,7 +43,7 @@ class UserNote(models.Model):
 class Attachment(models.Model):
     """ Model Attachment """
     note = models.ForeignKey(Note, on_delete=models.CASCADE)
-    content = models.TextField(_("Content"))
+    file_path = models.FileField(_("File Path"), upload_to='attachments/', null=True)  #I associate the flie_path variable with the media folder
     create_at = models.DateTimeField(_("Create Date"), auto_now_add=True)
 
     class Meta:
@@ -59,3 +59,10 @@ class ListItems(models.Model):
     note = models.ForeignKey(Note, on_delete=models.CASCADE)
     content = models.TextField(_("Content"))
     create_at = models.DateTimeField(_("Create Date"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("List Item")
+        verbose_name_plural = _("List Items")
+
+    def __str__(self) -> str:
+        return f"{self.note.title} {self.create_at}"
