@@ -121,20 +121,19 @@ class NoteUserViewSet(ModelViewSet):
         return Response(serializer.data)
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        note_id = request.data.get('note')
 
-        if not UserNote.objects.filte(user=request.user).exists():
-            raise PermissionDenied(
-                    'No tienes permiso para agregar usuarios a esta nota'
-                    )
+        # Verifica si el usuario puede agregar a alguien a la nota
+        if not UserNote.objects.filter(user=request.user, note_id=note_id).exists():
+            raise PermissionDenied('No tienes permiso para agregar usuarios a esta nota')
+
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exeception=True)
+        serializer.is_valid(raise_exception=True)
         serializer.save()
 
         return Response({
-            'menssage': 'El usuario fue agregado con exito',
-            },
-            status=status.HTTP_200_OK
-            )
+            'message': 'El usuario fue agregado con éxito',
+        }, status=status.HTTP_200_OK)
 
     def update(self, request: Request, *arg: Any, **kwargs: Any) -> Response:
         return Response(
@@ -147,3 +146,13 @@ class NoteUserViewSet(ModelViewSet):
             {'detail': 'Método no permitido.'},
             status=status.HTTP_405_METHOD_NOT_ALLOWED
             )
+
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        usernote = self.get_object()
+
+        if usernote.user != request.user:
+            raise PermissionDenied('No tienes permiso para eliminar a este usuario de esta nota')
+
+        usernote.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
