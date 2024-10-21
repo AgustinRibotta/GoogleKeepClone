@@ -14,8 +14,9 @@ from .models import (
 )
 from .serializer import (
         NoteSerializer,
-        UserNoteSerializer,
-        UserNoteListSerializer
+        UserNoteListSerializer,
+        NoteDetailSerializer,
+        UserNoteSerializer
         )
 
 
@@ -80,7 +81,7 @@ class NoteViewSet(ModelViewSet):
             raise PermissionDenied(
                     'No tienes permiso para ver esta nota.'
                     )
-        serializer = self.get_serializer(instance)
+        serializer = NoteDetailSerializer(instance)
         return Response(serializer.data)
 
     def destroy(self, request: Request, *args: Any, **kwargs: Any):
@@ -102,7 +103,7 @@ class NoteViewSet(ModelViewSet):
 
 class NoteUserViewSet(ModelViewSet):
     """ Model View Set For Note User"""
-    queryset: List[UserNote] = UserNote.objects.filter()
+    queryset: List[UserNote] = UserNote.objects.all()
     serializer_class = UserNoteSerializer
     permission_classes = [IsAuthenticated]
 
@@ -112,5 +113,46 @@ class NoteUserViewSet(ModelViewSet):
         queryset: List[Note] = UserNote.objects.filter(
                 user=request.user
                 )
-        serializer = UserNoteListSerializer(queryset, many=True)
+        serializer = UserNoteListSerializer(
+                queryset,
+                many=True,
+                context={'request': request}
+                )
         return Response(serializer.data)
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        note_id = request.data.get('note')
+
+        # Verifica si el usuario puede agregar a alguien a la nota
+        if not UserNote.objects.filter(user=request.user, note_id=note_id).exists():
+            raise PermissionDenied('No tienes permiso para agregar usuarios a esta nota')
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response({
+            'message': 'El usuario fue agregado con éxito',
+        }, status=status.HTTP_200_OK)
+
+    def update(self, request: Request, *arg: Any, **kwargs: Any) -> Response:
+        return Response(
+            {'detail': 'Método no permitido.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+
+    def retrieve(self, request: Request, *arg: Any, **kwargs: Any) -> Response:
+        return Response(
+            {'detail': 'Método no permitido.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        usernote = self.get_object()
+
+        if usernote.user != request.user:
+            raise PermissionDenied('No tienes permiso para eliminar a este usuario de esta nota')
+
+        usernote.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
