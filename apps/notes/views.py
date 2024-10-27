@@ -11,12 +11,13 @@ from rest_framework import status
 from .models import (
         Note,
         UserNote,
+        Attachment
 )
 from .serializer import (
         NoteSerializer,
         UserNoteListSerializer,
         NoteDetailSerializer,
-        UserNoteSerializer
+        UserNoteSerializer, AttachmentSerializer
         )
 
 
@@ -156,3 +157,48 @@ class NoteUserViewSet(ModelViewSet):
         usernote.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+class AttachmentViewSet(ModelViewSet):
+    """ ViewSet para manejar los archivos adjuntos """
+    serializer_class = AttachmentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        user_notes = UserNote.objects.filter(user=user).values_list('note', flat=True)
+        return Attachment.objects.filter(note__in=user_notes)
+
+    def perform_create(self, serializer):
+        note_id = self.request.data.get('note')
+
+        # Asegurarse de que la nota existe
+        try:
+            note = Note.objects.get(id=note_id)
+        except Note.DoesNotExist:
+            return Response({"detail": "La nota no existe."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Verificar que la nota pertenece al usuario autenticado
+        if not UserNote.objects.filter(note=note, user=self.request.user).exists():
+            return Response({"detail": "No tienes permiso para adjuntar archivos a esta nota."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Guardar el adjunto
+        serializer.save(note=note)
+
+    def perform_update(self, serializer):
+        # Obtener el adjunto a modificar
+        attachment = self.get_object()
+
+        # Verificar que el adjunto pertenece al usuario
+        if not UserNote.objects.filter(note=attachment.note, user=self.request.user).exists():
+            return Response({"detail": "No tienes permiso para modificar este adjunto."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Guardar los cambios
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        # Verificar que el adjunto pertenece al usuario
+        if not UserNote.objects.filter(note=instance.note, user=self.request.user).exists():
+            return Response({"detail": "No tienes permiso para eliminar este adjunto."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Eliminar el adjunto
+        instance.delete()

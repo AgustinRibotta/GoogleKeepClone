@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from .models import Note, UserNote
+from .models import Note, UserNote, Attachment
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 
 
 """
@@ -55,6 +56,23 @@ Serializadores para User Nota
 """
 
 
+class AttachmentSerializer(serializers.ModelSerializer):
+    """ Serializer para el archivo adjunto de las Notas relacionada a un Usuario """
+
+    class Meta:
+        model = Attachment
+        fields = ['note', 'file_path', 'create_at']
+        
+    def create(self, validated_data):  #To validate the size of the file
+        attachment = Attachment(**validated_data)
+        try:
+            attachment.full_clean() 
+            attachment.save()
+        except ValidationError as e:
+            raise serializers.ValidationError({"detail": e.messages})
+        return attachment
+    
+
 class UserForNoteUserSerializer(serializers.ModelSerializer):
     """ Serializador User para User Note """
     class Meta:
@@ -64,9 +82,11 @@ class UserForNoteUserSerializer(serializers.ModelSerializer):
 
 class NoteForNoteUserSerialzier(serializers.ModelSerializer):
     """ Serializor Note para User Note """
+    Attachment = AttachmentSerializer(many=True, read_only=True)
+
     class Meta:
         model = Note
-        fields = ['id', 'title', 'content']
+        fields = ['id', 'title', 'content', 'attachment']
 
 
 class UserNoteListSerializer(serializers.ModelSerializer):
@@ -114,3 +134,5 @@ class UserNoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserNote
         fields = '__all__'
+
+
