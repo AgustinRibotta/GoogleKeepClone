@@ -54,7 +54,8 @@ class Attachment(models.Model):
     def __str__(self) -> str:
         return f"{self.note.title} {self.create_at}"  
     
-    def clean(self):  #I create a clean method to validate the size of the file
+    #Para validar el tamaño del archivo
+    def clean(self):  
         max_file_size = 5 * 1024 * 1024  # 5MB
         if self.file_path and self.file_path.size>max_file_size:
             raise ValidationError(('File size cannot exceed 5MB'))

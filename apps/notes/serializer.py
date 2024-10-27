@@ -58,15 +58,15 @@ Serializadores para User Nota
 
 class AttachmentSerializer(serializers.ModelSerializer):
     """ Serializer para el archivo adjunto de las Notas relacionada a un Usuario """
-
+   
     class Meta:
         model = Attachment
-        fields = ['note', 'file_path', 'create_at']
+        fields = ['id', 'note', 'file_path', 'create_at']
         
-    def create(self, validated_data):  #To validate the size of the file
+    def create(self, validated_data):  
         attachment = Attachment(**validated_data)
         try:
-            attachment.full_clean() 
+            attachment.full_clean()  # Validar el tamaño del archivo
             attachment.save()
         except ValidationError as e:
             raise serializers.ValidationError({"detail": e.messages})
@@ -80,13 +80,19 @@ class UserForNoteUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username']
 
 
+class AttachmentForNoteUserSerializer(serializers.ModelSerializer):
+    """ Serializador Attachment para User Note """
+    class Meta:
+        model = Attachment
+        fields = ['id', 'file_path', 'create_at']
+
+
 class NoteForNoteUserSerialzier(serializers.ModelSerializer):
     """ Serializor Note para User Note """
-    Attachment = AttachmentSerializer(many=True, read_only=True)
-
+    attachments = AttachmentForNoteUserSerializer(many=True, read_only=True)
     class Meta:
         model = Note
-        fields = ['id', 'title', 'content', 'attachment']
+        fields = ['id', 'title', 'content', 'attachments']
 
 
 class UserNoteListSerializer(serializers.ModelSerializer):
