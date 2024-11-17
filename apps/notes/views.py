@@ -7,16 +7,18 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.shortcuts import get_object_or_404
 # From App Notes
 from .models import (
         Note,
         UserNote,
+        Attachment
 )
 from .serializer import (
         NoteSerializer,
         UserNoteListSerializer,
         NoteDetailSerializer,
-        UserNoteSerializer
+        UserNoteSerializer, AttachmentSerializer
         )
 
 
@@ -156,3 +158,35 @@ class NoteUserViewSet(ModelViewSet):
         usernote.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+class AttachmentViewSet(ModelViewSet):
+    """ ViewSet para manejar los archivos adjuntos """
+    serializer_class = AttachmentSerializer
+    permission_classes = [IsAuthenticated]
+
+    #Obtener el usuario autenticado y las notas asociadas
+    def get_queryset(self):  
+        user = self.request.user
+        user_notes = UserNote.objects.filter(user=user).values_list('note', flat=True)  
+        return Attachment.objects.filter(note__in=user_notes)  
+
+    #Verificar si el usuario tiene permiso para adjuntar archivos
+    def user_has_permission(self, note):  
+        return UserNote.objects.filter(note=note, user=self.request.user).exists()
+
+    def perform_create(self, serializer):  
+        note_id = self.request.data.get('note')
+        note = get_object_or_404(Note, id=note_id)  #Obtener la nota
+
+        if not self.user_has_permission(note):
+            raise PermissionDenied("No tienes permiso para adjuntar archivos a esta nota.")
+
+        attachment = serializer.save(note=note) 
+        return Response({"detail": "Archivo adjunto creado exitosamente.", "id": attachment.id}, status=status.HTTP_201_CREATED)
+
+    def perform_destroy(self, instance):
+        if not self.user_has_permission(instance.note):
+            raise PermissionDenied("No tienes permiso para eliminar este adjunto.")
+
+        instance.delete()
+        return Response({"detail": "Archivo adjunto eliminado exitosamente."}, status=status.HTTP_204_NO_CONTENT)

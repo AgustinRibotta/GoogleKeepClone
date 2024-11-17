@@ -2,6 +2,7 @@
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import User
 from django.db import models
+from django.core.exceptions import ValidationError
 
 
 class Note(models.Model):
@@ -42,7 +43,7 @@ class UserNote(models.Model):
 
 class Attachment(models.Model):
     """ Model Attachment """
-    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    note = models.ForeignKey(Note, related_name='attachments', on_delete=models.CASCADE)
     file_path = models.FileField(_("File Path"), upload_to='attachments/', null=True)  #I associate the flie_path variable with the media folder
     create_at = models.DateTimeField(_("Create Date"), auto_now_add=True)
 
@@ -51,7 +52,14 @@ class Attachment(models.Model):
         verbose_name_plural = _("Attachments")
 
     def __str__(self) -> str:
-        return f"{self.note.title} {self.create_at}"  # type: ignore
+        return f"{self.note.title} {self.create_at}"  
+    
+    #Para validar el tamaño del archivo
+    def clean(self):  
+        max_file_size = 5 * 1024 * 1024  # 5MB
+        if self.file_path and self.file_path.size>max_file_size:
+            raise ValidationError(('File size cannot exceed 5MB'))
+        
 
 
 class ListItems(models.Model):
